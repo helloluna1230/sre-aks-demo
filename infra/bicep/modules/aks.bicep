@@ -18,7 +18,7 @@ param location string
 @description('Tags to apply to resources')
 param tags object
 
-@description('Kubernetes version')
+@description('Kubernetes version (empty = AKS default)')
 param kubernetesVersion string
 
 @description('VM size for system node pool')
@@ -58,9 +58,9 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
     tier: 'Standard' // Standard tier for SLA - recommended for demos
   }
   properties: {
-    kubernetesVersion: kubernetesVersion
+    kubernetesVersion: empty(kubernetesVersion) ? null : kubernetesVersion
     dnsPrefix: name
-    
+
     // Enable features needed for SRE Agent
     oidcIssuerProfile: {
       enabled: true // Required for Workload Identity
@@ -70,7 +70,7 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
         enabled: true // Enable Workload Identity
       }
     }
-    
+
     // Network configuration - PUBLIC networking to allow SRE Agent access
     // SRE Agent cannot access Kubernetes objects if cluster has restricted inbound access
     networkProfile: {
@@ -80,12 +80,12 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
       serviceCidr: '10.1.0.0/16'
       dnsServiceIP: '10.1.0.10'
     }
-    
+
     // API server access - Enable public access for SRE Agent
     apiServerAccessProfile: {
       enablePrivateCluster: false // IMPORTANT: Must be false for SRE Agent
     }
-    
+
     // System node pool
     agentPoolProfiles: [
       {
@@ -122,7 +122,7 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
         }
       }
     ]
-    
+
     // Add-ons and monitoring
     addonProfiles: {
       omsagent: {
@@ -143,7 +143,7 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
         }
       }
     }
-    
+
     // Azure Monitor metrics
     azureMonitorProfile: {
       metrics: {
@@ -154,7 +154,7 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-02-01' = {
         }
       }
     }
-    
+
     // Auto-upgrade channel
     autoUpgradeProfile: {
       upgradeChannel: 'stable'
@@ -168,7 +168,10 @@ resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(aks.id, acrId, 'acrpull')
   scope: resourceGroup()
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+    ) // AcrPull
     principalId: aks.properties.identityProfile.kubeletidentity.objectId
     principalType: 'ServicePrincipal'
   }

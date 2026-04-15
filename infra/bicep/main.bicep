@@ -48,8 +48,8 @@ param incidentWebhookServiceUri string = ''
 @description('Optional action group resource IDs to notify when alerts fire')
 param alertActionGroupIds array = []
 
-@description('AKS Kubernetes version')
-param kubernetesVersion string = '1.32'
+@description('AKS Kubernetes version (empty = latest stable)')
+param kubernetesVersion string = ''
 
 @description('AKS system node pool VM size')
 @allowed([

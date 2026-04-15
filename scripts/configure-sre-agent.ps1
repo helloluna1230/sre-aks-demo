@@ -151,7 +151,7 @@ function Invoke-DataplaneApi {
     $url = "$agentEndpoint$Path"
 
     $curlArgs = @('-s', '-w', "`n%{http_code}", '-X', $Method, $url,
-                  '-H', "Authorization: Bearer $Token")
+        '-H', "Authorization: Bearer $Token")
 
     if ($Body) {
         $curlArgs += @('-H', 'Content-Type: application/json', '-d', $Body)
@@ -385,11 +385,11 @@ if (-not $SkipConnectors) {
         $ghBody = @{
             name       = "github-mcp"
             properties = @{
-                dataConnectorType = "StreamableHttp"
-                dataSource        = "github"
-                serverUri         = "https://api.githubcopilot.com/mcp/"
+                dataConnectorType  = "StreamableHttp"
+                dataSource         = "github"
+                serverUri          = "https://api.githubcopilot.com/mcp/"
                 authenticationType = "BearerToken"
-                credentials       = @{
+                credentials        = @{
                     token = $GitHubPat
                 }
             }

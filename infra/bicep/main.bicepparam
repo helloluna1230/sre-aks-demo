@@ -21,7 +21,6 @@ param deploySreAgent = true
 param deployActionGroup = false
 
 // AKS Configuration - cost-optimized for demo
-param kubernetesVersion = '1.32'
 param systemNodeVmSize = 'Standard_D2s_v5'
 param userNodeVmSize = 'Standard_D2s_v5'
 param systemNodeCount = 2
