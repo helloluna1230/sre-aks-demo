@@ -66,14 +66,16 @@ resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-
 }
 
 // Role assignments for the managed identity on this resource group
-resource roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for (roleId, index) in roleDefinitions[accessLevel]: {
-  name: guid(resourceGroup().id, managedIdentity.id, roleId)
-  properties: {
-    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', roleId)
-    principalId: managedIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
+resource roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for (roleId, index) in roleDefinitions[accessLevel]: {
+    name: guid(resourceGroup().id, managedIdentity.id, roleId)
+    properties: {
+      roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', roleId)
+      principalId: managedIdentity.properties.principalId
+      principalType: 'ServicePrincipal'
+    }
   }
-}]
+]
 
 // SRE Agent
 #disable-next-line BCP081
