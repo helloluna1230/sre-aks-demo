@@ -28,6 +28,9 @@ param appInsightsConnectionString string
 @description('Unique suffix for resource naming')
 param uniqueSuffix string
 
+@description('Resource IDs to add to SRE Agent knowledge graph (e.g. AKS cluster)')
+param managedResourceIds array = []
+
 // =============================================================================
 // VARIABLES
 // =============================================================================
@@ -87,7 +90,7 @@ resource sreAgent 'Microsoft.App/agents@2025-05-01-preview' = {
   properties: {
     knowledgeGraphConfiguration: {
       identity: managedIdentity.id
-      managedResources: []
+      managedResources: managedResourceIds
     }
     actionConfiguration: {
       accessLevel: accessLevel
