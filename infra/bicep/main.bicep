@@ -215,6 +215,9 @@ module sreAgent 'modules/sre-agent.bicep' = if (deploySreAgent) {
     appInsightsAppId: appInsights.outputs.appId
     appInsightsConnectionString: appInsights.outputs.connectionString
     uniqueSuffix: uniqueSuffix
+    managedResourceIds: [
+      aks.outputs.aksId
+    ]
   }
 }
 

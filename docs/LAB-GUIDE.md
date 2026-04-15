@@ -147,6 +147,8 @@ sre-agent
 
 Or navigate directly to [sre.azure.com](https://sre.azure.com).
 
+> **First-time onboarding screen:** On first launch you'll see a setup wizard asking you to add context sources (Code, Logs, Azure resources, Incidents). The deployment has already pre-configured Azure resources and logs, so click **"Done and go to agent"** to skip this screen.
+
 ### 3.1 — Healthy Baseline Prompts
 
 Before introducing failures, ask the agent to confirm the cluster is healthy. Try these prompts:
