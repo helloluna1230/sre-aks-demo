@@ -215,6 +215,86 @@ Connect external tools via Model Context Protocol (MCP):
 - **GitHub/Azure DevOps**: Correlate with code changes
 - **ServiceNow/PagerDuty**: Bi-directional incident management
 
+## Step 5: Configure Knowledge Base & Custom Agents
+
+After infrastructure deployment, configure the agent's knowledge base, custom agents, connectors, and scheduled tasks using the automated configuration script. This uses the **dataplane v2 API** (`{agentEndpoint}/api/v2/extendedAgent/`).
+
+### Automated (Recommended)
+
+The `deploy.ps1` script automatically calls `configure-sre-agent.ps1` after a successful deployment. To run it manually:
+
+```powershell
+# Basic configuration (knowledge base + agents + connectors + scheduled tasks)
+.\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2"
+
+# With GitHub integration
+.\scripts\configure-sre-agent.ps1 `
+    -ResourceGroupName "rg-srelab-eastus2" `
+    -GitHubPat $env:GITHUB_PAT `
+    -GitHubRepo "owner/repo"
+```
+
+### What Gets Configured
+
+| Component | Description |
+|-----------|-------------|
+| **Knowledge Base** | Runbooks for pod failures, networking, dependencies, resource exhaustion, app architecture |
+| **incident-handler** | Custom agent that investigates alerts using runbooks, log analysis, and emails results |
+| **cluster-health-monitor** | Custom agent for proactive health checks with email reports |
+| **code-analyzer** | (GitHub only) Custom agent for source code root cause analysis |
+| **Azure Monitor** | Connector for incident detection and alerting |
+| **Outlook** | Connector for email delivery (requires portal authorization) |
+| **GitHub MCP** | (Optional) Connector for searching code and creating issues |
+| **daily-health-check** | Scheduled task that runs cluster-health-monitor daily at 08:00 UTC |
+
+> **Note:** Incident response plans must be created manually in the [SRE Agent portal](https://sre.azure.com) — the script prints guidance for this.
+
+### Post-Configuration: Authorize Outlook
+
+The Outlook connector enables the `SendOutlookEmail` tool so agents can email you incident analysis and health reports. After the script runs:
+
+1. Open [sre.azure.com](https://sre.azure.com) → your agent → **Settings** → **Connectors**
+2. Find the **Outlook** connector and click **Authorize**
+3. Sign in with the account that should send incident emails
+4. Once authorized, agents will email findings for incidents and scheduled health checks
+
+### Post-Configuration: Create Incident Response Plan
+
+Incident response plans **cannot** be created via the dataplane API — the `incidentFilters` endpoint is read-only. Create one in the portal:
+
+1. Open [sre.azure.com](https://sre.azure.com) → your agent → **Builder** → **Incident response plans**
+2. Click **New incident response plan**
+3. Configure:
+   - **Name:** AKS Pod Failure Handler
+   - **Severity:** Sev1, Sev2, Sev3
+   - **Title contains:** pod
+   - **Response agent:** incident-handler
+   - **Agent autonomy:** Review
+4. Save — incidents matching the filter will automatically trigger the subagent
+
+### Partial Re-runs
+
+If part of the configuration fails, you can skip completed steps:
+
+```powershell
+# Skip knowledge base, only re-create agents and connectors
+.\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2" -SkipKnowledgeBase
+
+# Only upload knowledge base
+.\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2" -SkipAgents -SkipConnectors -SkipScheduledTasks
+```
+
+### Custom Runbooks
+
+To add your own runbooks:
+
+1. Create a `.md` file in `sre-config/knowledge-base/`
+2. Re-run the configuration script:
+   ```powershell
+   .\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2" -SkipAgents -SkipConnectors -SkipScheduledTasks
+   ```
+3. The script auto-discovers all `*.md` files in the knowledge-base directory
+
 ## Troubleshooting SRE Agent
 
 ### Agent Can't Access AKS Resources

@@ -7,6 +7,7 @@ A fully automated Azure environment for demonstrating **Azure SRE Agent** capabi
 - **Azure Kubernetes Service (AKS)** with a multi-pod e-commerce demo application
 - **8 breakable scenarios** for demonstrating SRE Agent diagnosis
 - **Azure SRE Agent** deployed automatically via Bicep for AI-powered diagnostics
+- **SRE Agent configuration layer**: Knowledge base runbooks, custom agents, connectors, and scheduled tasks
 - **Full observability stack**: Log Analytics, Application Insights, Managed Grafana
 - **Ready-to-use scripts** for deployment and teardown
 - **Dev container** for consistent development experience
@@ -59,14 +60,34 @@ fix-all
 
 ## 🤖 Using SRE Agent
 
-After deployment:
+After deployment, `deploy.ps1` automatically configures the SRE Agent with:
 
-1. **Open the SRE Agent Portal** — the URL is displayed in deployment output, or visit [aka.ms/sreagent/portal](https://aka.ms/sreagent/portal)
-2. **Connect it to your resources** (AKS, Log Analytics)
-3. **Ask it to diagnose**:
+- **Knowledge base** — Runbooks for each failure category (pod failures, networking, dependencies, resource exhaustion) plus app architecture and incident report templates
+- **Custom agents** — `incident-handler` (alert investigation), `cluster-health-monitor` (proactive checks), and optionally `code-analyzer` (GitHub source code RCA)
+- **Connectors** — Azure Monitor (incident source) and optionally GitHub MCP (source code search)
+- **Scheduled tasks** — `daily-health-check` runs cluster-health-monitor every day at 08:00 UTC
+
+### Getting Started
+
+1. **Open the SRE Agent Portal** — the URL is displayed in deployment output, or visit [sre.azure.com](https://sre.azure.com)
+2. **Verify configuration** — check Builder > Agent Canvas, Knowledge Files
+3. **Break something** — `break-oom`, `break-crash`, etc.
+4. **Ask the agent to investigate** — or create an incident response plan in the portal
+5. **Ask it to diagnose**:
    - "Why are pods crashing in the pets namespace?"
-   - "What's causing high CPU usage?"
-   - "Diagnose the CrashLoopBackOff error"
+   - "Run a health check on my cluster"
+   - "Trace the dependency chain — what broke first?"
+
+### Adding GitHub Integration
+
+To enable source code analysis and automated issue creation:
+
+```powershell
+.\scripts\configure-sre-agent.ps1 `
+    -ResourceGroupName "rg-srelab-eastus2" `
+    -GitHubPat $env:GITHUB_PAT `
+    -GitHubRepo "owner/repo"
+```
 
 See [docs/SRE-AGENT-SETUP.md](docs/SRE-AGENT-SETUP.md) for detailed instructions, or [docs/PROMPTS-GUIDE.md](docs/PROMPTS-GUIDE.md) for a full catalog of prompts to try.
 
@@ -104,6 +125,7 @@ See [docs/COSTS.md](docs/COSTS.md) for detailed breakdown and optimization tips.
 |---------|-------------|
 | `.\scripts\deploy.ps1 -Location eastus2` | Deploy all infrastructure to Azure |
 | `.\scripts\deploy.ps1 -WhatIf` | Preview what would be deployed |
+| `.\scripts\configure-sre-agent.ps1 -ResourceGroupName <rg>` | Configure SRE Agent (KB, agents, connectors) |
 | `.\scripts\validate-deployment.ps1 -ResourceGroupName <rg>` | Verify resources and app are healthy |
 | `.\scripts\destroy.ps1 -ResourceGroupName <rg>` | Tear down all infrastructure |
 
@@ -123,10 +145,33 @@ See [docs/COSTS.md](docs/COSTS.md) for detailed breakdown and optimization tips.
 | `kubectl get pods -n pets` | Check pod status |
 | `kubectl get events -n pets --sort-by='.lastTimestamp'` | View recent events |
 
+## � SRE Agent Configuration
+
+The `sre-config/` directory contains the SRE Agent configuration layer:
+
+```
+sre-config/
+├── knowledge-base/              # Runbooks uploaded to agent memory
+│   ├── aks-pod-failures.md       # OOM, CrashLoop, ImagePull, Pending, Probe, Config
+│   ├── network-connectivity.md   # Network policies, selector mismatches, DNS
+│   ├── dependency-failures.md    # MongoDB/RabbitMQ outages, cascading analysis
+│   ├── resource-exhaustion.md    # CPU, memory, scheduling, node health
+│   ├── app-architecture.md       # Service map, dependencies, monitoring queries
+│   └── incident-report-template.md # Structured GitHub issue template
+├── agents/                       # Custom agent YAML specifications
+│   ├── incident-handler-core.yaml  # Log/metric investigation (no GitHub)
+│   ├── incident-handler-full.yaml  # Full investigation + GitHub issues
+│   ├── cluster-health-monitor.yaml # Proactive health checks
+│   └── code-analyzer.yaml          # Source code RCA (requires GitHub)
+└── connectors/
+    ├── azure-monitor.yaml         # Azure Monitor incident connector
+    └── github-mcp.yaml           # GitHub MCP connector template
+```
+
 ## 📚 Documentation
 
-- [SRE Agent Setup Guide](docs/SRE-AGENT-SETUP.md)
-- [Prompts Guide](docs/PROMPTS-GUIDE.md)
+- [SRE Agent Setup Guide](docs/SRE-AGENT-SETUP.md) — deployment, RBAC, and configuration
+- [Prompts Guide](docs/PROMPTS-GUIDE.md) — prompts, agents, knowledge base, GitHub integration
 - [Breakable Scenarios Guide](docs/BREAKABLE-SCENARIOS.md)
 - [Cost Estimation](docs/COSTS.md)
 
