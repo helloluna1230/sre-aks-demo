@@ -163,7 +163,7 @@ $script:AgentResourceId = $null
 $script:AgentResourceName = $null
 $script:AgentResourceGroupName = $null
 
-$curlCommand = Get-Command curl -CommandType Application -ErrorAction SilentlyContinue
+$curlCommand = Get-Command curl -CommandType Application -All -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $curlCommand) {
     throw 'curl is required to call the SRE Agent dataplane APIs.'
 }
