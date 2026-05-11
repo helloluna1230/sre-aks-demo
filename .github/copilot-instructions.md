@@ -42,7 +42,7 @@ The app uses in-cluster MongoDB and RabbitMQ with Azure Managed Disk storage.
 
 ## Azure SRE Agent Context
 
-Azure SRE Agent is a Preview feature that provides AI-powered site reliability engineering automation:
+Azure SRE Agent is a generally available service that provides AI-powered site reliability engineering automation:
 
 - **Supported Regions**: East US 2, Sweden Central, Australia East
 - **Firewall Requirement**: Allow `*.azuresre.ai`
@@ -103,7 +103,7 @@ Set `deploySreAgent = true` in parameters (default). To manage the agent after d
 
 ### Configure SRE Agent (Post-Deployment)
 
-After infrastructure deployment, configure the agent with knowledge base, custom agents, connectors, and scheduled tasks via the dataplane v2 API:
+After infrastructure deployment, configure the agent with Knowledge Sources, custom agents, connectors, response plans, and scheduled tasks via the GA REST/ARM configuration script:
 
 ```powershell
 # Basic configuration (auto-called by deploy.ps1)

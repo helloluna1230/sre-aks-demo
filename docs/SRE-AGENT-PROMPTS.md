@@ -228,7 +228,7 @@ A comprehensive collection of prompts for Azure SRE Agent, organized by SRE disc
 
 ## Scheduled Tasks & Automation
 
-Use these prompts in the **Subagent builder** to set up recurring checks:
+Use these prompts in **Scheduled tasks** or **Builder > Agent Canvas** to set up recurring checks:
 
 | Prompt | Schedule | Purpose |
 |--------|----------|---------|

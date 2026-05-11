@@ -41,6 +41,85 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Invoke-AzCli {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+
+        [Parameter()]
+        [switch]$AllowFailure
+    )
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    try {
+        $output = & az @Arguments 2>$null | Out-String
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    if ($exitCode -ne 0 -and -not $AllowFailure) {
+        throw "Azure CLI command failed: az $($Arguments -join ' ')"
+    }
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Output   = $output
+    }
+}
+
+function Invoke-AzCliJson {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+
+        [Parameter()]
+        [switch]$AllowFailure
+    )
+
+    $result = Invoke-AzCli -Arguments $Arguments -AllowFailure:$AllowFailure
+    if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.Output)) {
+        return $null
+    }
+
+    $raw = $result.Output
+    $jsonObjectStart = $raw.IndexOf('{')
+    $jsonArrayStart = $raw.IndexOf('[')
+
+    if ($jsonObjectStart -ge 0 -and $jsonArrayStart -ge 0) {
+        $jsonStart = [Math]::Min($jsonObjectStart, $jsonArrayStart)
+    }
+    elseif ($jsonObjectStart -ge 0) {
+        $jsonStart = $jsonObjectStart
+    }
+    elseif ($jsonArrayStart -ge 0) {
+        $jsonStart = $jsonArrayStart
+    }
+    else {
+        $jsonStart = -1
+    }
+
+    if ($jsonStart -ge 0) {
+        $raw = $raw.Substring($jsonStart)
+    }
+
+    try {
+        return $raw | ConvertFrom-Json
+    }
+    catch {
+        if ($AllowFailure) {
+            return $null
+        }
+
+        throw
+    }
+}
+
 Write-Host @"
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -52,7 +131,7 @@ Write-Host @"
 # Get current user if not provided
 if (-not $CurrentUserPrincipalId) {
     Write-Host "🔍 Getting current user principal ID..." -ForegroundColor Yellow
-    $account = az ad signed-in-user show --output json 2>$null | ConvertFrom-Json
+    $account = Invoke-AzCliJson -Arguments @('ad', 'signed-in-user', 'show', '--only-show-errors', '--output', 'json') -AllowFailure
     if ($account) {
         $CurrentUserPrincipalId = $account.id
         Write-Host "  ✅ Current user: $($account.displayName) ($CurrentUserPrincipalId)" -ForegroundColor Green
@@ -64,7 +143,7 @@ if (-not $CurrentUserPrincipalId) {
 
 # Get resource group info
 Write-Host "`n🔍 Getting resource group information..." -ForegroundColor Yellow
-$rg = az group show --name $ResourceGroupName --output json 2>$null | ConvertFrom-Json
+$rg = Invoke-AzCliJson -Arguments @('group', 'show', '--name', $ResourceGroupName, '--only-show-errors', '--output', 'json') -AllowFailure
 
 if (-not $rg) {
     Write-Error "Resource group '$ResourceGroupName' not found"
@@ -75,7 +154,7 @@ Write-Host "  ✅ Resource Group: $ResourceGroupName" -ForegroundColor Green
 Write-Host "  📍 Location: $($rg.location)" -ForegroundColor Gray
 
 # Get subscription ID
-$subscriptionId = (az account show --output json | ConvertFrom-Json).id
+$subscriptionId = (Invoke-AzCliJson -Arguments @('account', 'show', '--only-show-errors', '--output', 'json')).id
 
 # Function to assign role with error handling
 function Set-RoleAssignment {
@@ -95,11 +174,14 @@ function Set-RoleAssignment {
     Write-Host "    📋 $Description" -ForegroundColor White
     
     # Check if assignment already exists
-    $existing = az role assignment list `
-        --scope $Scope `
-        --role $RoleDefinition `
-        --assignee $PrincipalId `
-        --output json 2>$null | ConvertFrom-Json
+    $existing = Invoke-AzCliJson -Arguments @(
+        'role', 'assignment', 'list',
+        '--scope', $Scope,
+        '--role', $RoleDefinition,
+        '--assignee', $PrincipalId,
+        '--only-show-errors',
+        '--output', 'json'
+    )
 
     if ($existing -and $existing.Count -gt 0) {
         Write-Host "       ✅ Already assigned" -ForegroundColor Green
@@ -107,12 +189,15 @@ function Set-RoleAssignment {
     }
 
     try {
-        az role assignment create `
-            --scope $Scope `
-            --role $RoleDefinition `
-            --assignee-object-id $PrincipalId `
-            --assignee-principal-type $PrincipalType `
-            --output none 2>$null
+        Invoke-AzCli -Arguments @(
+            'role', 'assignment', 'create',
+            '--scope', $Scope,
+            '--role', $RoleDefinition,
+            '--assignee-object-id', $PrincipalId,
+            '--assignee-principal-type', $PrincipalType,
+            '--only-show-errors',
+            '--output', 'none'
+        ) | Out-Null
         
         Write-Host "       ✅ Assigned successfully" -ForegroundColor Green
     }
@@ -124,7 +209,7 @@ function Set-RoleAssignment {
 
 # Get AKS cluster info
 Write-Host "`n🔍 Getting AKS cluster information..." -ForegroundColor Yellow
-$aksCluster = az aks list --resource-group $ResourceGroupName --output json 2>$null | ConvertFrom-Json | Select-Object -First 1
+$aksCluster = Invoke-AzCliJson -Arguments @('aks', 'list', '--resource-group', $ResourceGroupName, '--only-show-errors', '--output', 'json') | Select-Object -First 1
 
 if ($aksCluster) {
     $aksIdentityPrincipalId = $aksCluster.identityProfile.kubeletidentity.objectId
@@ -157,7 +242,7 @@ if ($CurrentUserPrincipalId) {
 }
 
 # 2. Key Vault roles
-$keyVault = az keyvault list --resource-group $ResourceGroupName --output json 2>$null | ConvertFrom-Json | Select-Object -First 1
+$keyVault = Invoke-AzCliJson -Arguments @('keyvault', 'list', '--resource-group', $ResourceGroupName, '--only-show-errors', '--output', 'json') -AllowFailure | Select-Object -First 1
 
 if ($keyVault -and $CurrentUserPrincipalId) {
     Write-Host "`n  📌 Key Vault Access:" -ForegroundColor Cyan
@@ -219,7 +304,7 @@ if ($SreAgentPrincipalId) {
     }
     
     # Log Analytics access for querying logs
-    $logAnalytics = az monitor log-analytics workspace list --resource-group $ResourceGroupName --output json 2>$null | ConvertFrom-Json | Select-Object -First 1
+    $logAnalytics = Invoke-AzCliJson -Arguments @('monitor', 'log-analytics', 'workspace', 'list', '--resource-group', $ResourceGroupName, '--only-show-errors', '--output', 'json') -AllowFailure | Select-Object -First 1
     if ($logAnalytics) {
         Set-RoleAssignment `
             -Scope $logAnalytics.id `
@@ -230,7 +315,7 @@ if ($SreAgentPrincipalId) {
     }
 
     # Application Insights read access for telemetry correlation
-    $appInsights = az resource list --resource-group $ResourceGroupName --resource-type "Microsoft.Insights/components" --output json 2>$null | ConvertFrom-Json | Select-Object -First 1
+    $appInsights = Invoke-AzCliJson -Arguments @('resource', 'list', '--resource-group', $ResourceGroupName, '--resource-type', 'Microsoft.Insights/components', '--only-show-errors', '--output', 'json') -AllowFailure | Select-Object -First 1
     if ($appInsights) {
         Set-RoleAssignment `
             -Scope $appInsights.id `
@@ -241,7 +326,7 @@ if ($SreAgentPrincipalId) {
     }
 
     # Azure Monitor Workspace access for managed Prometheus metrics
-    $azureMonitorWorkspace = az resource list --resource-group $ResourceGroupName --resource-type "Microsoft.Monitor/accounts" --output json 2>$null | ConvertFrom-Json | Select-Object -First 1
+    $azureMonitorWorkspace = Invoke-AzCliJson -Arguments @('resource', 'list', '--resource-group', $ResourceGroupName, '--resource-type', 'Microsoft.Monitor/accounts', '--only-show-errors', '--output', 'json') -AllowFailure | Select-Object -First 1
     if ($azureMonitorWorkspace) {
         Set-RoleAssignment `
             -Scope $azureMonitorWorkspace.id `
@@ -262,7 +347,7 @@ if ($SreAgentPrincipalId) {
     }
     
     # Container Registry access
-    $acr = az acr list --resource-group $ResourceGroupName --output json 2>$null | ConvertFrom-Json | Select-Object -First 1
+    $acr = Invoke-AzCliJson -Arguments @('acr', 'list', '--resource-group', $ResourceGroupName, '--only-show-errors', '--output', 'json') -AllowFailure | Select-Object -First 1
     if ($acr) {
         Set-RoleAssignment `
             -Scope $acr.id `
@@ -274,16 +359,8 @@ if ($SreAgentPrincipalId) {
 }
 
 # 4. Grafana roles (if Grafana is deployed)
-$grafanaJson = az grafana list --resource-group $ResourceGroupName --output json 2>$null
 $grafana = $null
-if ($grafanaJson -and $grafanaJson -match '^\s*\[') {
-    try {
-        $grafana = $grafanaJson | ConvertFrom-Json | Select-Object -First 1
-    }
-    catch {
-        # Ignore JSON parsing errors - Grafana likely not deployed
-    }
-}
+$grafana = Invoke-AzCliJson -Arguments @('grafana', 'list', '--resource-group', $ResourceGroupName, '--only-show-errors', '--output', 'json') -AllowFailure | Select-Object -First 1
 
 if ($grafana) {
     Write-Host "`n  📌 Grafana Access:" -ForegroundColor Cyan

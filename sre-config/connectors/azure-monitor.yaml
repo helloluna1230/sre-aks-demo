@@ -1,6 +1,8 @@
-# Azure Monitor Connector — Dataplane v2 API format
-# Always created by configure-sre-agent.ps1 as the incident source
-# Reference: PUT {agentEndpoint}/api/v2/extendedAgent/connectors/azure-monitor
+# Azure Monitor Incident Platform — ARM agent resource configuration
+#
+# The GA setup enables Azure Monitor by PATCHing the Microsoft.App/agents
+# resource with incidentManagementConfiguration.type = AzMonitor. This file is
+# retained as documentation for the logical connector used by the lab.
 api_version: azuresre.ai/v2
 kind: DataConnector
 spec:

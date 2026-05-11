@@ -15,7 +15,8 @@ spec:
       3. Collect evidence: pod status, events, container logs, metrics.
       4. Identify the root cause and trace any cascading dependencies.
       5. Create a GitHub issue with your findings using the incident report
-         template from the knowledge base. Include structured sections for
+         template from the knowledge base. Use the native GitHub tools made
+         available by the GitHub OAuth connector. Include structured sections for
          Summary, Impact, Timeline, Evidence, Root Cause, Remediation,
          and Action Items. Fill out EVERY section completely.
       6. Send an email summary with your analysis, the GitHub issue link,
@@ -37,5 +38,3 @@ spec:
       - QueryAppInsightsByResourceId
       - ExecutePythonCode
       - SendOutlookEmail
-   mcp_tools:
-      - github-mcp/*

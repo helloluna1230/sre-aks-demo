@@ -91,7 +91,7 @@ if (Write-Check "AKS Cluster exists" ($null -ne $aks) $aks.name) {
     $passedChecks++
     
     # Get AKS details
-    $aksDetails = az aks show --resource-group $ResourceGroupName --name $aks.name --output json 2>$null | ConvertFrom-Json
+    $aksDetails = az aks show --resource-group $ResourceGroupName --name $aks.name --only-show-errors --output json 2>$null | ConvertFrom-Json
     
     $totalChecks++
     if (Write-Check "AKS Cluster is running" ($aksDetails.provisioningState -eq "Succeeded" -and $aksDetails.powerState.code -eq "Running") "State: $($aksDetails.powerState.code)") {
@@ -154,7 +154,7 @@ Write-Section "Kubernetes Connectivity"
 # Get AKS credentials if needed
 if ($aksName) {
     Write-Host "  Connecting to AKS cluster..." -ForegroundColor Gray
-    az aks get-credentials --resource-group $ResourceGroupName --name $aksName --overwrite-existing 2>$null
+    az aks get-credentials --resource-group $ResourceGroupName --name $aksName --only-show-errors --overwrite-existing 2>$null
 }
 
 # Test kubectl connectivity

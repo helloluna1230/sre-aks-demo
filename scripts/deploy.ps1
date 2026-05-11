@@ -121,6 +121,33 @@ function Invoke-AzCliJson {
     }
 }
 
+function Get-PowerShellExecutablePath {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $currentProcessPath = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+        if ($currentProcessPath -and (Test-Path $currentProcessPath)) {
+            return $currentProcessPath
+        }
+    }
+    catch {
+        # Fall back to PATH lookup below.
+    }
+
+    $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+    if ($pwshCommand) {
+        return $pwshCommand.Source
+    }
+
+    $windowsPowerShellCommand = Get-Command powershell -ErrorAction SilentlyContinue
+    if ($windowsPowerShellCommand) {
+        return $windowsPowerShellCommand.Source
+    }
+
+    throw "Could not find a PowerShell executable to run validation. Install PowerShell 7 or ensure powershell.exe is available in PATH."
+}
+
 function Get-ArmErrorMessages {
     [CmdletBinding()]
     param(
@@ -665,6 +692,7 @@ Write-Host "`n🔑 Getting AKS credentials..." -ForegroundColor Yellow
 az aks get-credentials `
     --resource-group $resourceGroupName `
     --name $outputs.aksClusterName.value `
+    --only-show-errors `
     --overwrite-existing
 
 Write-Host "  ✅ kubectl configured for cluster: $($outputs.aksClusterName.value)" -ForegroundColor Green
@@ -753,7 +781,8 @@ Write-Host "`n🔍 Running deployment validation..." -ForegroundColor Yellow
 $validateScript = Join-Path $PSScriptRoot "validate-deployment.ps1"
 
 if (Test-Path $validateScript) {
-    & pwsh -NoLogo -NoProfile -File $validateScript -ResourceGroupName $resourceGroupName
+    $powerShellExecutable = Get-PowerShellExecutablePath
+    & $powerShellExecutable -NoLogo -NoProfile -File $validateScript -ResourceGroupName $resourceGroupName
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  ⚠️  Validation found issues, but the infrastructure deployment completed. Review the validation output above." -ForegroundColor Yellow
     }

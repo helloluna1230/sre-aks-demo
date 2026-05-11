@@ -157,7 +157,7 @@ Demo proactive SRE automation:
 | "Run a daily capacity analysis and report if any node is above 80% utilization" | Capacity monitoring |
 
 To set these up in the portal:
-1. Go to **Subagent builder** in your SRE Agent resource
+1. Go to **Scheduled tasks** or **Builder > Agent Canvas** in your SRE Agent resource
 2. Click **Create scheduled task**
 3. Enter the prompt and set the schedule (e.g., cron: `0 * * * *` for hourly)
 
@@ -191,9 +191,9 @@ The configuration script also creates a response plan that auto-triggers the `in
 4. The `incident-handler` subagent runs the relevant runbook automatically
 5. Findings are summarized (and optionally written to a GitHub issue)
 
-### Knowledge Base
+### Knowledge Sources
 
-The following runbooks are uploaded to the agent's knowledge base:
+The following runbooks are uploaded to the agent's Knowledge Sources:
 
 | Document | Content |
 |----------|---------|
@@ -206,11 +206,11 @@ The following runbooks are uploaded to the agent's knowledge base:
 
 > **Tip:** You can add custom runbooks to `sre-config/knowledge-base/` and re-run `configure-sre-agent.ps1` to upload them.
 
-### GitHub MCP Integration (Optional)
+### GitHub OAuth Integration (Optional)
 
-When you provide a GitHub PAT, the configuration script enables:
+When you provide a GitHub repository, the configuration script enables:
 
-- **GitHub MCP connector** — lets the agent search code, read files, and create issues
+- **GitHub OAuth connector + repository Knowledge Source** — lets the agent search code, read files, and create issues through native GitHub tools
 - **Full incident-handler** — upgraded to create GitHub issues with structured reports
 - **code-analyzer subagent** — deep source code root cause analysis
 
@@ -218,9 +218,10 @@ To add GitHub integration after initial setup:
 ```powershell
 .\scripts\configure-sre-agent.ps1 `
     -ResourceGroupName "rg-srelab-eastus2" `
-    -GitHubPat $env:GITHUB_PAT `
     -GitHubRepo "owner/repo"
 ```
+
+After running the command, authorize GitHub using the printed OAuth URL or from **Builder > Knowledge Sources**.
 
 ---
 

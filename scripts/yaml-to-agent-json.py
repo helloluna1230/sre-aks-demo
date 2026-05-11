@@ -1,46 +1,28 @@
 #!/usr/bin/env python3
-"""Convert SRE Agent YAML spec to dataplane v2 API JSON.
+"""Compatibility wrapper for yaml-to-api-json.py.
 
-Usage: python3 yaml-to-agent-json.py <yaml-file> [github-repo]
-Outputs JSON to stdout suitable for PUT /api/v2/extendedAgent/agents/{name}
+Usage:
+    yaml-to-agent-json.py <yaml_file> [github_repo]
+
+Outputs JSON to stdout suitable for:
+    PUT /api/v2/extendedAgent/agents/{name}
 """
 import json
 import sys
-import yaml
+import importlib.util
+from pathlib import Path
 
-def convert(yaml_path, github_repo=None):
-    with open(yaml_path) as f:
-        doc = yaml.safe_load(f)
+converter_path = Path(__file__).resolve().with_name("yaml-to-api-json.py")
+spec = importlib.util.spec_from_file_location("yaml_to_api_json", converter_path)
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
 
-    spec = doc.get("spec", doc)
-
-    instructions = spec.get("system_prompt", spec.get("instructions", ""))
-    if github_repo:
-        instructions = instructions.replace("GITHUB_REPO_PLACEHOLDER", github_repo)
-
-    tools = spec.get("tools", [])
-    mcp_tools = spec.get("mcp_tools", [])
-    handoffs = spec.get("handoffs", [])
-
-    result = {
-        "name": spec["name"],
-        "type": "ExtendedAgent",
-        "properties": {
-            "instructions": instructions,
-            "handoffDescription": spec.get("handoff_description", spec.get("handoffDescription", "")),
-            "tools": tools,
-            "mcpTools": mcp_tools,
-            "handoffs": handoffs,
-            "allowParallelToolCalls": spec.get("allow_parallel_tool_calls", False),
-            "enableSkills": spec.get("enable_skills", True),
-        },
-    }
-
-    return result
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: yaml-to-agent-json.py <yaml-file> [github-repo]", file=sys.stderr)
+        print("Usage: yaml-to-agent-json.py <yaml_file> [github_repo]", file=sys.stderr)
         sys.exit(1)
-    repo = sys.argv[2] if len(sys.argv) > 2 else None
-    print(json.dumps(convert(sys.argv[1], repo)))
+
+    repo = sys.argv[2] if len(sys.argv) > 2 else ""
+    print(json.dumps(module.convert(sys.argv[1], repo), separators=(",", ":")))

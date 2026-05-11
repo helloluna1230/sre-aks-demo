@@ -1,0 +1,11 @@
+# GitHub OAuth Connector — GA native code/repository integration
+# Created by configure-sre-agent-ga.ps1 when -GitHubRepo is provided.
+# GitHub OAuth tools are native/global in the GA experience; custom agents do
+# not need github-mcp/* mcp_tools assignments for code search or issue creation.
+api_version: azuresre.ai/v2
+kind: DataConnector
+spec:
+  name: github
+  type: AgentConnector
+  dataConnectorType: GitHubOAuth
+  dataSource: github-oauth

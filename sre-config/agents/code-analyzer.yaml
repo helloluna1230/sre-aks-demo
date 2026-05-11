@@ -10,9 +10,10 @@ spec:
     When triggered:
     1. Search the knowledge base for the relevant runbook and execute ALL
        diagnostic steps — query logs, check metrics, collect evidence.
-    2. Use the GitHub MCP tools to search GITHUB_REPO_PLACEHOLDER for source
-       code that correlates with the observed errors. Provide file:line
-       references to the root cause.
+    2. Use the native GitHub tools from the GitHub OAuth connector and the
+       GITHUB_REPO_PLACEHOLDER Knowledge Source to search source code that
+       correlates with the observed errors. Provide file:line references to
+       the root cause.
     3. Combine log/metric evidence AND source code analysis into a full
        root cause analysis.
 
@@ -34,5 +35,3 @@ spec:
     - QueryLogAnalyticsByWorkspaceId
     - QueryAppInsightsByResourceId
     - ExecutePythonCode
-  mcp_tools:
-    - github-mcp/*

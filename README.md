@@ -6,7 +6,7 @@ A fully automated Azure environment for demonstrating **Azure SRE Agent** capabi
 
 - **Azure Kubernetes Service (AKS)** with a multi-pod e-commerce demo application
 - **8 breakable scenarios** for demonstrating SRE Agent diagnosis
-- **Azure SRE Agent** deployed automatically via Bicep for AI-powered diagnostics
+- **Azure SRE Agent (GA)** deployed automatically via Bicep for AI-powered diagnostics
 - **SRE Agent configuration layer**: Knowledge base runbooks, custom agents, connectors, and scheduled tasks
 - **Full observability stack**: Log Analytics, Application Insights, Managed Grafana
 - **Ready-to-use scripts** for deployment and teardown
@@ -33,7 +33,7 @@ az login --use-device-code
 .\scripts\deploy.ps1 -Location eastus2 -Yes
 ```
 
-> 💡 **Tip**: Type `menu` in the terminal to see all available commands including break scenarios, fix commands, and kubectl shortcuts.
+> 💡 **Tip**: In the dev container, type `menu` in the terminal to see all available shortcuts. On local Windows PowerShell, run `\.\scripts\menu.ps1` instead.
 
 ## 💥 Breaking Things (The Fun Part!)
 
@@ -49,7 +49,10 @@ break-crash
 # Image Pull failure
 break-image
 
-# See all scenarios
+# See all scenarios on local Windows PowerShell
+.\scripts\menu.ps1
+
+# Or, inside the dev container
 menu
 ```
 
@@ -64,13 +67,13 @@ After deployment, `deploy.ps1` automatically configures the SRE Agent with:
 
 - **Knowledge base** — Runbooks for each failure category (pod failures, networking, dependencies, resource exhaustion) plus app architecture and incident report templates
 - **Custom agents** — `incident-handler` (alert investigation), `cluster-health-monitor` (proactive checks), and optionally `code-analyzer` (GitHub source code RCA)
-- **Connectors** — Azure Monitor (incident source) and optionally GitHub MCP (source code search)
+- **Connectors** — Azure Monitor incident platform, Outlook notifications, and optionally GitHub OAuth/code repository Knowledge Source
 - **Scheduled tasks** — `daily-health-check` runs cluster-health-monitor every day at 08:00 UTC
 
 ### Getting Started
 
 1. **Open the SRE Agent Portal** — the URL is displayed in deployment output, or visit [sre.azure.com](https://sre.azure.com)
-2. **Verify configuration** — check Builder > Agent Canvas, Knowledge Files
+2. **Verify configuration** — check Builder > Agent Canvas, Builder > Knowledge Sources, Builder > Connectors, and Scheduled tasks
 3. **Break something** — `break-oom`, `break-crash`, etc.
 4. **Ask the agent to investigate** — or create an incident response plan in the portal
 5. **Ask it to diagnose**:
@@ -85,9 +88,10 @@ To enable source code analysis and automated issue creation:
 ```powershell
 .\scripts\configure-sre-agent.ps1 `
     -ResourceGroupName "rg-srelab-eastus2" `
-    -GitHubPat $env:GITHUB_PAT `
     -GitHubRepo "owner/repo"
 ```
+
+The GA flow uses the native GitHub OAuth connector and registers the repository as a Knowledge Source. After running the command, open the printed OAuth URL (or go to **Builder > Knowledge Sources**) to authorize GitHub access.
 
 See [docs/SRE-AGENT-SETUP.md](docs/SRE-AGENT-SETUP.md) for detailed instructions, or [docs/PROMPTS-GUIDE.md](docs/PROMPTS-GUIDE.md) for a full catalog of prompts to try.
 
@@ -165,7 +169,9 @@ sre-config/
 │   └── code-analyzer.yaml          # Source code RCA (requires GitHub)
 └── connectors/
     ├── azure-monitor.yaml         # Azure Monitor incident connector
-    └── github-mcp.yaml           # GitHub MCP connector template
+    ├── github-oauth.yaml          # GA GitHub OAuth connector template
+    ├── github-mcp.yaml            # Optional GitHub MCP connector template
+    └── outlook.yaml               # Outlook notification connector template
 ```
 
 ## 📚 Documentation
@@ -187,7 +193,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 **⚠️ Important Notes:**
 
-- SRE Agent is currently in **Preview**
+- SRE Agent is **Generally Available**
 - Only available in **East US 2**, **Sweden Central**, and **Australia East**
 - AKS cluster must **NOT** be a private cluster for SRE Agent to access
 - Firewall must allow `*.azuresre.ai`

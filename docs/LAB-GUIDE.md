@@ -35,7 +35,7 @@ Before starting, make sure you have:
 1. Clone the repository and open it in VS Code
 2. When prompted, click **Reopen in Container** (or use the command palette: `Dev Containers: Reopen in Container`)
 3. Wait for the container to build — it installs Azure CLI, kubectl, Helm, PowerShell, and helpful aliases
-4. Type `menu` in the terminal to see all available commands
+4. Type `menu` in the dev container terminal to see all available commands. If you are using local Windows PowerShell instead, run `\.\scripts\menu.ps1`.
 
 ---
 
@@ -167,7 +167,7 @@ Take note of the healthy state — you'll compare this to the broken state in ea
 In the SRE Agent portal, check:
 
 - **Builder > Agent Canvas** — you should see `incident-handler` and `cluster-health-monitor` custom agents
-- **Knowledge Files** — runbooks for pod failures, networking, dependencies, etc.
+- **Builder > Knowledge Sources** — runbooks for pod failures, networking, dependencies, etc.
 - **Connectors** — Azure Monitor (and optionally Outlook, GitHub)
 
 ---
@@ -471,7 +471,7 @@ This deletes the resource group and everything in it (AKS, ACR, Key Vault, SRE A
 
 ## Tips and Troubleshooting
 
-- **Type `menu`** to see all available commands at any time
+- **Type `menu`** in the dev container to see all available commands at any time. On local Windows PowerShell, use `\.\scripts\menu.ps1`.
 - **Use `fix-all`** between scenarios to restore the healthy baseline
 - **Wait 30–60 seconds** after applying a break scenario before asking SRE Agent — give the failure time to manifest
 - **Start with open-ended prompts** — SRE Agent's investigation is more impressive when it discovers the issue rather than being told what to look for

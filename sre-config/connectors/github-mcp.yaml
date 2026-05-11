@@ -1,5 +1,8 @@
-# GitHub MCP Connector — Dataplane v2 API format
-# Created by configure-sre-agent.ps1 when -GitHubPat is provided
+# GitHub MCP Connector — optional MCP transport template
+#
+# The GA sandbox configuration uses github-oauth.yaml for native GitHub code
+# repository and issue tools. Keep this template only for advanced scenarios
+# where you explicitly want to connect the GitHub MCP Streamable-HTTP server.
 # Reference: PUT {agentEndpoint}/api/v2/extendedAgent/connectors/github-mcp
 api_version: azuresre.ai/v2
 kind: DataConnector

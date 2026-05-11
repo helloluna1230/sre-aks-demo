@@ -4,7 +4,7 @@ This guide walks you through setting up Azure SRE Agent to work with the demo la
 
 ## What is Azure SRE Agent?
 
-Azure SRE Agent (Preview) is an AI-powered site reliability engineering automation tool that helps you:
+Azure SRE Agent is an AI-powered site reliability engineering automation tool that helps you:
 
 - **Diagnose issues** in Azure resources using natural language
 - **Investigate incidents** across AKS, App Service, Container Apps, and more
@@ -191,7 +191,7 @@ Once connected, you can interact with SRE Agent using natural language:
 
 Create automated diagnosis tasks:
 
-1. Go to **Subagent builder** in SRE Agent
+1. Go to **Scheduled tasks** in SRE Agent, or use **Builder > Agent Canvas** from a custom agent node
 2. Click **Create scheduled task**
 3. Configure:
    - **Name**: "Daily AKS Health Check"
@@ -202,7 +202,7 @@ Create automated diagnosis tasks:
 
 Configure automatic diagnosis when incidents are created:
 
-1. Go to **Subagent builder** > **Incident triggers**
+1. Go to **Builder** > **Incident response plans** or **Builder > Agent Canvas**
 2. Connect to your incident management system (PagerDuty, ServiceNow)
 3. Define trigger conditions and diagnosis prompts
 
@@ -215,9 +215,21 @@ Connect external tools via Model Context Protocol (MCP):
 - **GitHub/Azure DevOps**: Correlate with code changes
 - **ServiceNow/PagerDuty**: Bi-directional incident management
 
-## Step 5: Configure Knowledge Base & Custom Agents
+## Step 5: Configure Knowledge Sources & Custom Agents
 
-After infrastructure deployment, configure the agent's knowledge base, custom agents, connectors, and scheduled tasks using the automated configuration script. This uses the **dataplane v2 API** (`{agentEndpoint}/api/v2/extendedAgent/`).
+After infrastructure deployment, configure the agent's Knowledge Sources, custom agents, incident platform, connectors, response plan, and scheduled tasks using the automated configuration script. The stable entry point is `scripts/configure-sre-agent.ps1`, which delegates to the GA-aligned `scripts/configure-sre-agent-ga.ps1`.
+
+The script follows the current SRE Agent API pattern used by the official starter lab:
+
+| Area | API path |
+|------|----------|
+| Knowledge files | `POST {agentEndpoint}/api/v1/AgentMemory/upload` |
+| Custom agents | `PUT {agentEndpoint}/api/v2/extendedAgent/agents/{name}` |
+| Azure Monitor incident platform | `PATCH Microsoft.App/agents@2025-05-01-preview` |
+| Response plans | `PUT {agentEndpoint}/api/v1/incidentPlayground/filters/{id}` |
+| GitHub OAuth connector | `PUT {agentEndpoint}/api/v2/extendedAgent/connectors/github` and ARM `DataConnectors/github` |
+| Code repository Knowledge Source | `PUT {agentEndpoint}/api/v2/repos/{repoName}` |
+| Scheduled tasks | `POST {agentEndpoint}/api/v1/scheduledtasks` |
 
 ### Automated (Recommended)
 
@@ -230,7 +242,6 @@ The `deploy.ps1` script automatically calls `configure-sre-agent.ps1` after a su
 # With GitHub integration
 .\scripts\configure-sre-agent.ps1 `
     -ResourceGroupName "rg-srelab-eastus2" `
-    -GitHubPat $env:GITHUB_PAT `
     -GitHubRepo "owner/repo"
 ```
 
@@ -238,50 +249,48 @@ The `deploy.ps1` script automatically calls `configure-sre-agent.ps1` after a su
 
 | Component | Description |
 |-----------|-------------|
-| **Knowledge Base** | Runbooks for pod failures, networking, dependencies, resource exhaustion, app architecture |
+| **Knowledge Sources** | Runbooks for pod failures, networking, dependencies, resource exhaustion, app architecture |
 | **incident-handler** | Custom agent that investigates alerts using runbooks, log analysis, and emails results |
 | **cluster-health-monitor** | Custom agent for proactive health checks with email reports |
 | **code-analyzer** | (GitHub only) Custom agent for source code root cause analysis |
-| **Azure Monitor** | Connector for incident detection and alerting |
+| **Azure Monitor** | Incident platform for alert ingestion and response plans |
 | **Outlook** | Connector for email delivery (requires portal authorization) |
-| **GitHub MCP** | (Optional) Connector for searching code and creating issues |
+| **GitHub OAuth + Code Repo** | (Optional) Native GitHub connector and repository Knowledge Source for code search/issues |
+| **AKS Pod Failure Handler** | Response plan that routes Azure Monitor incidents to `incident-handler` |
 | **daily-health-check** | Scheduled task that runs cluster-health-monitor daily at 08:00 UTC |
 
-> **Note:** Incident response plans must be created manually in the [SRE Agent portal](https://sre.azure.com) — the script prints guidance for this.
+> **Note:** GitHub OAuth still requires browser authorization. The script prints the OAuth URL when the API returns one; you can also authorize from **Builder > Knowledge Sources**.
 
 ### Post-Configuration: Authorize Outlook
 
 The Outlook connector enables the `SendOutlookEmail` tool so agents can email you incident analysis and health reports. After the script runs:
 
-1. Open [sre.azure.com](https://sre.azure.com) → your agent → **Settings** → **Connectors**
+1. Open [sre.azure.com](https://sre.azure.com) → your agent → **Builder** → **Connectors**
 2. Find the **Outlook** connector and click **Authorize**
 3. Sign in with the account that should send incident emails
 4. Once authorized, agents will email findings for incidents and scheduled health checks
 
-### Post-Configuration: Create Incident Response Plan
+### Post-Configuration: Verify Incident Response Plan
 
-Incident response plans **cannot** be created via the dataplane API — the `incidentFilters` endpoint is read-only. Create one in the portal:
+The GA script creates the `AKS Pod Failure Handler` response plan through the SRE Agent API. Verify it in the portal:
 
 1. Open [sre.azure.com](https://sre.azure.com) → your agent → **Builder** → **Incident response plans**
-2. Click **New incident response plan**
-3. Configure:
-   - **Name:** AKS Pod Failure Handler
-   - **Severity:** Sev1, Sev2, Sev3
-   - **Title contains:** pod
-   - **Response agent:** incident-handler
-   - **Agent autonomy:** Review
-4. Save — incidents matching the filter will automatically trigger the subagent
+2. Confirm `AKS Pod Failure Handler` is **On** and routes to `incident-handler`
+3. Adjust severity, title filter, or autonomy level in the portal if you want a narrower production-safe plan
 
 ### Partial Re-runs
 
 If part of the configuration fails, you can skip completed steps:
 
 ```powershell
-# Skip knowledge base, only re-create agents and connectors
+# Skip knowledge files, only re-create agents/connectors/response plans
 .\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2" -SkipKnowledgeBase
 
-# Only upload knowledge base
-.\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2" -SkipAgents -SkipConnectors -SkipScheduledTasks
+# Only upload knowledge files
+.\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2" -SkipAgents -SkipConnectors -SkipResponsePlans -SkipScheduledTasks
+
+# Show current SRE Agent configuration without making changes
+.\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2" -StatusOnly
 ```
 
 ### Custom Runbooks
@@ -291,7 +300,7 @@ To add your own runbooks:
 1. Create a `.md` file in `sre-config/knowledge-base/`
 2. Re-run the configuration script:
    ```powershell
-   .\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2" -SkipAgents -SkipConnectors -SkipScheduledTasks
+   .\scripts\configure-sre-agent.ps1 -ResourceGroupName "rg-srelab-eastus2" -SkipAgents -SkipConnectors -SkipResponsePlans -SkipScheduledTasks
    ```
 3. The script auto-discovers all `*.md` files in the knowledge-base directory
 
