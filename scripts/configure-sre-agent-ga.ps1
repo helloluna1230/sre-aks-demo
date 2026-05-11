@@ -1143,7 +1143,24 @@ function Set-GitHubKnowledgeSource {
         }
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($oauthUrl)) {
+    $repoStatus = $null
+    try {
+        $repoStatusResponse = Invoke-SreDataPlane -Method GET -Path "/api/v2/repos/$repoName"
+        if ($repoStatusResponse.StatusCode -eq 200 -and $repoStatusResponse.Body) {
+            $repoStatus = $repoStatusResponse.Body | ConvertFrom-Json
+        }
+    }
+    catch {
+        Write-Host "  ⚠️  Could not read repository status: $_" -ForegroundColor Yellow
+    }
+
+    $repoCloneStatus = if ($repoStatus) { $repoStatus.properties.cloneStatus } else { '' }
+    $lastSuccessfulSync = if ($repoStatus) { $repoStatus.properties.lastSuccessfulSync } else { '' }
+    if ($repoCloneStatus -eq 'Ready' -or -not [string]::IsNullOrWhiteSpace($lastSuccessfulSync)) {
+        $latestCommit = if ($repoStatus.properties.latestCommit) { $repoStatus.properties.latestCommit.Substring(0, [Math]::Min(7, $repoStatus.properties.latestCommit.Length)) } else { 'unknown' }
+        Write-Host "  ✅ GitHub repository authorized and cloned (latest commit: $latestCommit)" -ForegroundColor Green
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($oauthUrl)) {
         Write-Host ''
         Write-Host '  GitHub authorization required:' -ForegroundColor Yellow
         Write-Host "  $oauthUrl" -ForegroundColor White
@@ -1250,6 +1267,27 @@ function Show-ConfigurationStatus {
             $icon = if ($state -eq 'Succeeded') { '✅' } else { '⏳' }
             Write-Host "     $icon $($connector.name) ($state)" -ForegroundColor Gray
         }
+    }
+    catch { Write-Host "     unavailable: $_" -ForegroundColor Gray }
+
+    Write-Host '  💻 Code Repositories:' -ForegroundColor Cyan
+    try {
+        $repos = Invoke-SreDataPlane -Method GET -Path '/api/v2/repos'
+        if ($repos.StatusCode -eq 200 -and $repos.Body) {
+            $data = $repos.Body | ConvertFrom-Json
+            $items = @($data.value)
+            if ($items.Count -eq 0) { Write-Host '     (none)' -ForegroundColor Gray }
+            foreach ($repo in $items) {
+                $cloneStatus = if ($repo.properties.cloneStatus) { $repo.properties.cloneStatus } else { 'Unknown' }
+                $icon = if ($cloneStatus -eq 'Ready') { '✅' } elseif ($cloneStatus -eq 'Failed') { '⚠️' } else { '⏳' }
+                $latestCommit = if ($repo.properties.latestCommit) { $repo.properties.latestCommit.Substring(0, [Math]::Min(7, $repo.properties.latestCommit.Length)) } else { 'none' }
+                Write-Host "     $icon $($repo.name) ($cloneStatus, commit: $latestCommit)" -ForegroundColor Gray
+                if ($repo.properties.errorMessage) {
+                    Write-Host "        $($repo.properties.errorMessage)" -ForegroundColor Gray
+                }
+            }
+        }
+        else { Write-Host "     unavailable (HTTP $($repos.StatusCode))" -ForegroundColor Gray }
     }
     catch { Write-Host "     unavailable: $_" -ForegroundColor Gray }
 
